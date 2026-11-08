@@ -3,100 +3,131 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solana Devnet PoW - Gateway avec Paliers</title>
+  <title>Solana PoW Faucet - Cyber Cartoon</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            cartoon: ['Fredoka', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
           colors: {
-            solana: { 500: '#14F195', 600: '#00C274', purple: '#9945FF' }
+            solana: {
+              fuchsia: '#D946EF',
+              purple: '#9945FF',
+              neon: '#14F195',
+              dark: '#0B0914',
+              card: '#161026'
+            }
           }
         }
       }
     }
   </script>
+  <style>
+    /* Effets Cartoonesques & Cyber robustes */
+    .cartoon-box {
+      border: 3px solid #000000;
+      box-shadow: 4px 4px 0px #000000;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+    .cartoon-box-fuchsia {
+      border: 3px solid #D946EF;
+      box-shadow: 4px 4px 0px #D946EF;
+    }
+    .cartoon-btn:hover:not(:disabled) {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px #000000;
+    }
+    .cartoon-btn:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px #000000;
+    }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
+<body class="bg-solana-dark text-slate-100 min-h-screen font-cartoon flex items-center justify-center p-4 selection:bg-solana-fuchsia selection:text-white">
 
-  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+  <div class="max-w-md w-full bg-solana-card border-4 border-solana-fuchsia rounded-3xl p-6 shadow-[8px_8px_0px_#D946EF] space-y-6">
     
-    <!-- En-tête -->
-    <div class="text-center">
-      <h1 class="text-xl font-bold bg-gradient-to-r from-solana-purple via-indigo-400 to-solana-500 bg-clip-text text-transparent">
-        Solana PoW Faucet
+    <!-- En-tête Cyber Cartoon -->
+    <div class="text-center space-y-1">
+      <h1 class="text-3xl font-extrabold tracking-wider uppercase text-transparent bg-clip-text bg-gradient-to-r from-solana-fuchsia via-solana-purple to-solana-neon drop-shadow-[2px_2px_0px_#000]">
+        ⚡ PoW Faucet ⚡
       </h1>
-      <p class="text-xs text-slate-400 mt-1">Minage PoW & Déverrouillage par Paliers</p>
+      <p class="text-xs font-mono text-solana-neon tracking-wide">MINING // SOLANA DEVNET</p>
     </div>
 
     <!-- Configuration Wallet -->
-    <div class="space-y-4">
+    <div class="space-y-3">
       <div>
-        <label class="block text-xs text-slate-400 mb-1">Adresse Solana (Base58)</label>
-        <input type="text" id="walletAddress" placeholder="Ex: 3KATYSWGBQiBmgZa1UiiFxFgS1RiQhxPaNnVQY7eGvSq" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-solana-500 focus:outline-none focus:border-solana-500">
+        <label class="block text-xs font-bold text-solana-fuchsia uppercase mb-1">Adresse Solana (Base58)</label>
+        <input type="text" id="walletAddress" placeholder="Ex: 3KATYSW..." class="w-full bg-solana-dark border-3 border-solana-fuchsia rounded-xl px-3 py-3 text-xs font-mono text-solana-neon focus:outline-none focus:ring-2 focus:ring-solana-neon placeholder:text-slate-600 shadow-[2px_2px_0px_#D946EF]">
       </div>
 
-      <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95">
-        Démarrer le Minage
+      <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3.5 rounded-xl font-extrabold text-sm tracking-wide transition-all bg-solana-fuchsia hover:bg-fuchsia-500 text-slate-950 cartoon-box border-black cursor-pointer uppercase">
+        🚀 Démarrer le Minage
       </button>
     </div>
 
     <!-- Barre de Progression & Solde Accumulé -->
-    <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 space-y-2">
-      <div class="flex justify-between items-center text-xs">
-        <span class="text-slate-400">Solde Miné :</span>
-        <span id="minedBalance" class="font-mono font-bold text-solana-500">0.000 SOL</span>
+    <div class="bg-solana-dark border-3 border-solana-purple rounded-2xl p-4 space-y-3 shadow-[4px_4px_0px_#9945FF]">
+      <div class="flex justify-between items-center text-sm">
+        <span class="text-slate-300 font-bold">Solde Miné :</span>
+        <span id="minedBalance" class="font-mono font-bold text-solana-neon text-base">0.000 SOL</span>
       </div>
 
-      <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-        <div id="progressBar" class="bg-gradient-to-r from-solana-purple to-solana-500 h-full w-0 transition-all duration-300"></div>
+      <div class="w-full bg-slate-900 rounded-xl h-4 overflow-hidden border-2 border-black p-0.5">
+        <div id="progressBar" class="bg-gradient-to-r from-solana-fuchsia to-solana-neon h-full w-0 rounded-lg transition-all duration-300"></div>
       </div>
-      <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+      <div class="flex justify-between text-[10px] text-slate-400 font-mono font-bold">
         <span>0 SOL</span>
-        <span>Objectif max: 5 SOL</span>
+        <span>OBJECTIF MAX : 5 SOL</span>
       </div>
     </div>
 
     <!-- Notification de transaction -->
-    <div id="notification" class="hidden p-3 rounded-xl text-xs font-mono text-center border"></div>
+    <div id="notification" class="hidden p-3 rounded-xl text-xs font-mono text-center border-2 border-black font-bold"></div>
 
     <!-- Section des Paliers de Réclamation -->
-    <div class="space-y-2">
-      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Paliers de Réclamation</h2>
-      <div class="grid grid-cols-2 gap-2">
+    <div class="space-y-3">
+      <h2 class="text-xs font-bold text-solana-fuchsia uppercase tracking-wider">🎯 Paliers de Réclamation</h2>
+      <div class="grid grid-cols-2 gap-3">
         
         <!-- Palier 0.5 SOL -->
-        <button id="tier-05" onclick="claimTier(0.5)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
-          <div class="text-xs font-bold text-slate-300">0.5 SOL</div>
-          <div id="status-05" class="text-[10px] text-slate-500">Verrouillé</div>
+        <button id="tier-05" onclick="claimTier(0.5)" disabled class="p-3 rounded-2xl border-3 border-slate-700 bg-solana-dark/80 opacity-50 text-left transition-all cursor-not-allowed cartoon-box">
+          <div class="text-sm font-extrabold text-slate-300">0.5 SOL</div>
+          <div id="status-05" class="text-[10px] text-slate-500 font-mono">🔒 Verrouillé</div>
         </button>
 
         <!-- Palier 1 SOL -->
-        <button id="tier-1" onclick="claimTier(1.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
-          <div class="text-xs font-bold text-slate-300">1.0 SOL</div>
-          <div id="status-1" class="text-[10px] text-slate-500">Verrouillé</div>
+        <button id="tier-1" onclick="claimTier(1.0)" disabled class="p-3 rounded-2xl border-3 border-slate-700 bg-solana-dark/80 opacity-50 text-left transition-all cursor-not-allowed cartoon-box">
+          <div class="text-sm font-extrabold text-slate-300">1.0 SOL</div>
+          <div id="status-1" class="text-[10px] text-slate-500 font-mono">🔒 Verrouillé</div>
         </button>
 
         <!-- Palier 2 SOL -->
-        <button id="tier-2" onclick="claimTier(2.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
-          <div class="text-xs font-bold text-slate-300">2.0 SOL</div>
-          <div id="status-2" class="text-[10px] text-slate-500">Verrouillé</div>
+        <button id="tier-2" onclick="claimTier(2.0)" disabled class="p-3 rounded-2xl border-3 border-slate-700 bg-solana-dark/80 opacity-50 text-left transition-all cursor-not-allowed cartoon-box">
+          <div class="text-sm font-extrabold text-slate-300">2.0 SOL</div>
+          <div id="status-2" class="text-[10px] text-slate-500 font-mono">🔒 Verrouillé</div>
         </button>
 
         <!-- Palier 5 SOL -->
-        <button id="tier-5" onclick="claimTier(5.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
-          <div class="text-xs font-bold text-slate-300">5.0 SOL</div>
-          <div id="status-5" class="text-[10px] text-slate-500">Verrouillé</div>
+        <button id="tier-5" onclick="claimTier(5.0)" disabled class="p-3 rounded-2xl border-3 border-slate-700 bg-solana-dark/80 opacity-50 text-left transition-all cursor-not-allowed cartoon-box">
+          <div class="text-sm font-extrabold text-slate-300">5.0 SOL</div>
+          <div id="status-5" class="text-[10px] text-slate-500 font-mono">🔒 Verrouillé</div>
         </button>
 
       </div>
     </div>
 
     <!-- Statut et Hashes -->
-    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-500">
-      <span id="statusLabel">Statut : Inactif</span>
-      <span id="speedLabel" class="font-mono">0 H/s</span>
+    <div class="flex items-center justify-between pt-3 border-t-2 border-solana-fuchsia/30 text-xs font-mono">
+      <span id="statusLabel" class="text-solana-fuchsia font-bold">STATUT : INACTIF</span>
+      <span id="speedLabel" class="text-solana-neon font-bold">0 H/s</span>
     </div>
   </div>
 
@@ -140,11 +171,12 @@
     };
   </script>
 
-  <!-- Logique JavaScript -->
+  <!-- Logique JavaScript & WebSocket robuste (Ping/Pong) -->
   <script>
     let isRunning = false;
     let worker = null;
     let ws = null;
+    let pingInterval = null;
 
     let currentBalance = 0.0;
     const REWARD_PER_PROOF = 0.02;
@@ -160,8 +192,8 @@
       const el = document.getElementById('notification');
       el.innerText = msg;
       el.className = isError 
-        ? 'p-3 rounded-xl text-xs font-mono text-center border bg-rose-500/10 border-rose-500/30 text-rose-400'
-        : 'p-3 rounded-xl text-xs font-mono text-center border bg-solana-500/10 border-solana-500/30 text-solana-500';
+        ? 'p-3 rounded-xl text-xs font-mono text-center border-2 border-black bg-rose-500 text-slate-950 font-bold shadow-[2px_2px_0px_#000]'
+        : 'p-3 rounded-xl text-xs font-mono text-center border-2 border-black bg-solana-neon text-slate-950 font-bold shadow-[2px_2px_0px_#000]';
       el.classList.remove('hidden');
     }
 
@@ -170,18 +202,27 @@
       
       ws.onopen = () => {
         console.log('[WS] Connecté au serveur Render');
-        document.getElementById('statusLabel').innerText = 'Statut : Connecté & Minage actif';
+        document.getElementById('statusLabel').innerText = 'STATUT : CONNECTÉ & ACTIF';
+
+        // Garder la ligne active avec un ping toutes les 20s
+        pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ action: 'ping' }));
+          }
+        }, 20000);
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          if (data.status === 'pong') return;
+
           console.log('[WS] Réponse serveur :', data);
 
           if (data.status === 'CLAIM_SUCCESS') {
-            showNotification(`Succès : ${data.message}`);
+            showNotification(`SUCCÈS : ${data.message}`);
           } else if (data.status === 'ERROR') {
-            showNotification(`Erreur : ${data.message}`, true);
+            showNotification(`ERREUR : ${data.message}`, true);
           }
         } catch (e) {
           console.error('[WS] Erreur parsing', e);
@@ -190,8 +231,10 @@
 
       ws.onclose = () => {
         console.log('[WS] Déconnecté');
+        if (pingInterval) clearInterval(pingInterval);
         if (isRunning) {
-          document.getElementById('statusLabel').innerText = 'Statut : Déconnecté';
+          document.getElementById('statusLabel').innerText = 'STATUT : RECONEXION...';
+          setTimeout(connectWS, 3000);
         }
       };
 
@@ -212,19 +255,20 @@
 
       if (!isRunning) {
         isRunning = true;
-        btn.innerText = 'Arrêter le minage';
-        btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95';
-        status.innerText = 'Statut : Connexion...';
+        btn.innerText = '🛑 ARRÊTER LE MINAGE';
+        btn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm tracking-wide transition-all bg-rose-500 hover:bg-rose-400 text-slate-950 cartoon-box border-black cursor-pointer uppercase';
+        status.innerText = 'STATUT : CONNEXION...';
 
         connectWS();
         startMiningWorker(address);
       } else {
         isRunning = false;
-        btn.innerText = 'Démarrer le Minage';
-        btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95';
-        status.innerText = 'Statut : Inactif';
+        btn.innerText = '🚀 DÉMARRER LE MINAGE';
+        btn.className = 'w-full py-3.5 rounded-xl font-extrabold text-sm tracking-wide transition-all bg-solana-fuchsia hover:bg-fuchsia-500 text-slate-950 cartoon-box border-black cursor-pointer uppercase';
+        status.innerText = 'STATUT : INACTIF';
         document.getElementById('speedLabel').innerText = '0 H/s';
 
+        if (pingInterval) clearInterval(pingInterval);
         if (worker) worker.terminate();
         if (ws) ws.close();
       }
@@ -266,11 +310,11 @@
         const btn = document.getElementById(tier.id);
         const status = document.getElementById(tier.statusId);
 
-        if (currentBalance >= tier.amount) {
+        if (currentBalance >= tier.amount && btn.disabled) {
           btn.disabled = false;
-          btn.className = 'p-3 rounded-xl border border-solana-500/50 bg-solana-500/10 text-left transition-all hover:bg-solana-500/20 cursor-pointer shadow-lg shadow-solana-500/10';
-          status.innerText = 'Déverrouillé !';
-          status.className = 'text-[10px] text-solana-500 font-semibold';
+          btn.className = 'p-3 rounded-2xl border-3 border-solana-neon bg-solana-neon/20 text-left transition-all hover:bg-solana-neon/30 cursor-pointer shadow-[3px_3px_0px_#14F195] cartoon-box';
+          status.innerText = '✨ DÉVERROUILLÉ !';
+          status.className = 'text-[10px] text-solana-neon font-mono font-bold';
         }
       });
     }
@@ -283,11 +327,11 @@
       }
 
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert('Le WebSocket est déconnecté. Démarrez d’abord le processus.');
+        alert('Le WebSocket est en cours de reconnexion. Patientez une seconde.');
         return;
       }
 
-      showNotification(`Envoi de la réclamation de ${amount} SOL au serveur...`);
+      showNotification(`Envoi de la réclamation de ${amount} SOL...`);
       console.log(`[CLAIM] Envoi de l'action claim_reward pour ${amount} SOL à ${address}`);
 
       ws.send(JSON.stringify({
