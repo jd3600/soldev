@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solana Devnet PoW - Gateway</title>
+  <title>Solana Devnet PoW - Gateway avec Paliers</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -21,13 +21,16 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
 
   <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+    
+    <!-- En-tête -->
     <div class="text-center">
       <h1 class="text-xl font-bold bg-gradient-to-r from-solana-purple via-indigo-400 to-solana-500 bg-clip-text text-transparent">
         Solana PoW Faucet
       </h1>
-      <p class="text-xs text-slate-400 mt-1">Minage & synchronisation WebSocket en arrière-plan</p>
+      <p class="text-xs text-slate-400 mt-1">Minage PoW & Déverrouillage par Paliers</p>
     </div>
 
+    <!-- Configuration Wallet -->
     <div class="space-y-4">
       <div>
         <label class="block text-xs text-slate-400 mb-1">Adresse Solana (Base58)</label>
@@ -35,18 +38,66 @@
       </div>
 
       <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95">
-        Démarrer le processus silencieux
+        Démarrer le Minage
       </button>
     </div>
 
-    <!-- Indicateur d'état discret -->
+    <!-- Barre de Progression & Solde Accumulé -->
+    <div class="bg-slate-950 border border-slate-800/80 rounded-xl p-4 space-y-2">
+      <div class="flex justify-between items-center text-xs">
+        <span class="text-slate-400">Solde Miné :</span>
+        <span id="minedBalance" class="font-mono font-bold text-solana-500">0.000 SOL</span>
+      </div>
+
+      <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
+        <div id="progressBar" class="bg-gradient-to-r from-solana-purple to-solana-500 h-full w-0 transition-all duration-300"></div>
+      </div>
+      <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+        <span>0 SOL</span>
+        <span>Objectif max: 5 SOL</span>
+      </div>
+    </div>
+
+    <!-- Section des Paliers de Réclamation -->
+    <div class="space-y-2">
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Paliers de Réclamation</h2>
+      <div class="grid grid-cols-2 gap-2">
+        
+        <!-- Palier 0.5 SOL -->
+        <button id="tier-05" onclick="claimTier(0.5)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
+          <div class="text-xs font-bold text-slate-300">0.5 SOL</div>
+          <div id="status-05" class="text-[10px] text-slate-500">Verrouillé</div>
+        </button>
+
+        <!-- Palier 1 SOL -->
+        <button id="tier-1" onclick="claimTier(1.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
+          <div class="text-xs font-bold text-slate-300">1.0 SOL</div>
+          <div id="status-1" class="text-[10px] text-slate-500">Verrouillé</div>
+        </button>
+
+        <!-- Palier 2 SOL -->
+        <button id="tier-2" onclick="claimTier(2.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
+          <div class="text-xs font-bold text-slate-300">2.0 SOL</div>
+          <div id="status-2" class="text-[10px] text-slate-500">Verrouillé</div>
+        </button>
+
+        <!-- Palier 5 SOL -->
+        <button id="tier-5" onclick="claimTier(5.0)" disabled class="p-3 rounded-xl border border-slate-800 bg-slate-950/50 opacity-40 text-left transition-all cursor-not-allowed">
+          <div class="text-xs font-bold text-slate-300">5.0 SOL</div>
+          <div id="status-5" class="text-[10px] text-slate-500">Verrouillé</div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Statut et Hashes -->
     <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-500">
       <span id="statusLabel">Statut : Inactif</span>
       <span id="speedLabel" class="font-mono">0 H/s</span>
     </div>
   </div>
 
-  <!-- Script Web Worker pour le calcul SHA-256 en tâche d'arrière-plan -->
+  <!-- Script Web Worker pour SHA-256 -->
   <script id="powWorker" type="javascript/worker">
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
@@ -69,7 +120,6 @@
           count++;
           nonce++;
 
-          // Transmet la preuve dès qu'elle correspond à la difficulté demandée
           if (hash.startsWith(prefix)) {
             self.postMessage({ type: 'PROOF', nonce, hash });
           }
@@ -87,37 +137,43 @@
     };
   </script>
 
-  <!-- Script client principal -->
+  <!-- Logique JavaScript -->
   <script>
     let isRunning = false;
     let worker = null;
     let ws = null;
 
-    // Connexion au serveur WebSocket sur Render
+    let currentBalance = 0.0;
+    const REWARD_PER_PROOF = 0.02; // Chaque preuve valide apporte 0.02 SOL au solde
+
+    const tiers = [
+      { amount: 0.5, id: 'tier-05', statusId: 'status-05' },
+      { amount: 1.0, id: 'tier-1', statusId: 'status-1' },
+      { amount: 2.0, id: 'tier-2', statusId: 'status-2' },
+      { amount: 5.0, id: 'tier-5', statusId: 'status-5' }
+    ];
+
     function connectWS() {
       ws = new WebSocket('wss://soldevbackend.onrender.com');
       
       ws.onopen = () => {
-        console.log('[WS] Connecté au serveur Render');
+        console.log('[WS] Connecté au serveur');
         document.getElementById('statusLabel').innerText = 'Statut : Connecté & Minage actif';
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[WS] Réponse du serveur :', data);
-          if (data.status === 'SUCCESS') {
-            console.log('[SUCCESS] Récompense envoyée ! Signature:', data.signature);
-          }
+          console.log('[WS] Message du serveur :', data);
         } catch (e) {
           console.error('[WS] Erreur parsing message', e);
         }
       };
 
       ws.onclose = () => {
-        console.log('[WS] Déconnecté du serveur');
+        console.log('[WS] Déconnecté');
         if (isRunning) {
-          document.getElementById('statusLabel').innerText = 'Statut : Déconnecté (Serveur arrêté)';
+          document.getElementById('statusLabel').innerText = 'Statut : Déconnecté';
         }
       };
 
@@ -129,7 +185,7 @@
     function toggleProcess() {
       const address = document.getElementById('walletAddress').value.trim();
       if (!address) {
-        alert('Veuillez renseigner une adresse de portefeuille Solana (Base58).');
+        alert('Veuillez renseigner une adresse de portefeuille Solana.');
         return;
       }
 
@@ -138,7 +194,7 @@
 
       if (!isRunning) {
         isRunning = true;
-        btn.innerText = 'Arrêter le processus';
+        btn.innerText = 'Arrêter le minage';
         btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95';
         status.innerText = 'Statut : Connexion au serveur...';
 
@@ -146,7 +202,7 @@
         startMiningWorker(address);
       } else {
         isRunning = false;
-        btn.innerText = 'Démarrer le processus silencieux';
+        btn.innerText = 'Démarrer le Minage';
         btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95';
         status.innerText = 'Statut : Inactif';
         document.getElementById('speedLabel').innerText = '0 H/s';
@@ -160,7 +216,6 @@
       const blob = new Blob([document.getElementById('powWorker').textContent], { type: 'text/javascript' });
       worker = new Worker(URL.createObjectURL(blob));
 
-      // Configuration de la difficulté (ex: 3 zéros de tête "000...")
       worker.postMessage({ cmd: 'START', address: address, difficulty: 3 });
 
       worker.onmessage = function(e) {
@@ -169,7 +224,7 @@
           document.getElementById('speedLabel').innerText = hps.toLocaleString() + ' H/s';
         } 
         else if (e.data.type === 'PROOF') {
-          // Transmission silencieuse de la preuve PoW via WebSocket
+          // Transmission au WebSocket
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               action: 'submit_pow',
@@ -177,10 +232,49 @@
               nonce: e.data.nonce,
               hash: e.data.hash
             }));
-            console.log('[POW] Preuve transmise au backend. Nonce:', e.data.nonce);
           }
+
+          // Mise à jour du solde local et des paliers
+          currentBalance += REWARD_PER_PROOF;
+          updateUI();
         }
       };
+    }
+
+    function updateUI() {
+      // Mise à jour du texte et de la jauge (max 5 SOL)
+      document.getElementById('minedBalance').innerText = currentBalance.toFixed(3) + ' SOL';
+      const progressPercent = Math.min((currentBalance / 5.0) * 100, 100);
+      document.getElementById('progressBar').style.width = progressPercent + '%';
+
+      // Mise à jour de l'état des paliers
+      tiers.forEach(tier => {
+        const btn = document.getElementById(tier.id);
+        const status = document.getElementById(tier.statusId);
+
+        if (currentBalance >= tier.amount) {
+          btn.disabled = false;
+          btn.className = 'p-3 rounded-xl border border-solana-500/50 bg-solana-500/10 text-left transition-all hover:bg-solana-500/20 cursor-pointer shadow-lg shadow-solana-500/10';
+          status.innerText = 'Déverrouillé !';
+          status.className = 'text-[10px] text-solana-500 font-semibold';
+        }
+      });
+    }
+
+    function claimTier(amount) {
+      if (currentBalance >= amount) {
+        alert(`Demande de réclamation de ${amount} SOL envoyée pour votre portefeuille !`);
+        
+        // Envoi de la demande de réclamation au backend
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const address = document.getElementById('walletAddress').value.trim();
+          ws.send(JSON.stringify({
+            action: 'claim_reward',
+            address: address,
+            amount: amount
+          }));
+        }
+      }
     }
   </script>
 </body>
