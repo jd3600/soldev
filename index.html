@@ -82,8 +82,7 @@
 
     // Connexion WebSocket silencieuse
     function connectWS() {
-      // Remplacez par l'adresse de votre propre nœud/serveur WebSocket
-      ws = new WebSocket('wss://echo.websocket.events');
+      ws = new WebSocket('wss://soldevbackend.onrender.com');
       
       ws.onopen = () => console.log('[WS] Connecté silencieusement');
       ws.onclose = () => console.log('[WS] Déconnecté');
