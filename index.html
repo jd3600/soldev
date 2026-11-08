@@ -258,7 +258,6 @@
           document.getElementById('metricHashrate').innerText = hashrate.toLocaleString() + ' H/s';
         } else if (data.type === 'SOLUTION') {
           logLog('SUCCESS', `Preuve trouvée ! Nonce: ${data.nonce} | Hash: ${data.hash}`, 'text-solana-500 font-bold');
-          alert('Preuve de travail (PoW) validée avec succès pour votre adresse Solana !');
         }
       };
     }
