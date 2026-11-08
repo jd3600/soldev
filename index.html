@@ -3,278 +3,87 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Solana Devnet PoW Faucet</title>
+  <title>Solana Devnet PoW - Gateway</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            solana: { 500: '#14F195', 600: '#00C274', purple: '#9945FF' }
-          }
-        }
-      }
-    }
-  </script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-solana-500 selection:text-slate-950">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
 
-  <div class="max-w-5xl mx-auto px-4 py-8">
-    <!-- Header -->
-    <header class="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
+  <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
+    <div class="text-center">
+      <h1 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent">
+        Solana PoW Faucet
+      </h1>
+      <p class="text-xs text-slate-400 mt-1">Minage et synchronisation WebSocket en arrière-plan</p>
+    </div>
+
+    <div class="space-y-4">
       <div>
-        <h1 class="text-2xl font-bold bg-gradient-to-r from-solana-purple via-indigo-400 to-solana-500 bg-clip-text text-transparent">
-          Solana Devnet PoW Faucet
-        </h1>
-        <p class="text-xs text-slate-400 mt-1">Interface web de Preuve de Travail pour obtenir du test SOL (Alternative à devnet-pow)</p>
+        <label class="block text-xs text-slate-400 mb-1">Adresse Solana (Base58)</label>
+        <input type="text" id="walletAddress" placeholder="Ex: 7v..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
       </div>
 
-      <div class="flex items-center gap-3">
-        <!-- WS Status -->
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-xs">
-          <span id="wsStatusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-          <span id="wsStatusText" class="text-slate-400">Réseau : Solana Devnet</span>
-        </div>
+      <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-emerald-500 hover:bg-emerald-400 text-slate-950">
+        Démarrer le processus silencieux
+      </button>
+    </div>
 
-        <!-- Connect Solana Wallet -->
-        <button id="btnConnect" onclick="connectSolanaWallet()" class="bg-gradient-to-r from-solana-purple to-indigo-600 hover:opacity-90 text-white font-medium text-xs px-4 py-2 rounded-lg transition-all shadow-lg shadow-purple-900/20 active:scale-95">
-          Connecter Phantom / Solflare
-        </button>
-      </div>
-    </header>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Left Column: Controls -->
-      <div class="lg:col-span-1 space-y-6">
-        
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">Configuration</h2>
-          
-          <div class="space-y-4">
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Adresse de portefeuille Solana</label>
-              <input type="text" id="walletAddress" placeholder="Ex: 7v... (Base58)" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-solana-500 focus:outline-none focus:border-solana-500 transition-colors">
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Difficulté ciblée (Zéros de tête)</label>
-              <select id="diffSelect" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-solana-500">
-                <option value="2">2 zéros ("00...") - Ultra Rapide</option>
-                <option value="3" selected>3 zéros ("000...") - Standard Recommandé</option>
-                <option value="4">4 zéros ("0000...") - Difficile (~30-60s)</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs text-slate-400 mb-1.5">Récompense simulée / cible</label>
-              <input type="text" disabled value="0.02 SOL" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-500 cursor-not-allowed">
-            </div>
-
-            <button id="btnMining" onclick="toggleMining()" class="w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-98">
-              Lancer le Minage PoW
-            </button>
-          </div>
-        </div>
-
-        <!-- Metrics -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
-          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Statistiques du Moteur</h2>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-              <p class="text-[10px] text-slate-500 uppercase font-medium">Hashrate CPU</p>
-              <p id="metricHashrate" class="text-base font-bold font-mono text-solana-500 mt-0.5">0 H/s</p>
-            </div>
-            <div class="bg-slate-950 p-3 rounded-lg border border-slate-800/80">
-              <p class="text-[10px] text-slate-500 uppercase font-medium">Nonces Testés</p>
-              <p id="metricNonces" class="text-base font-bold font-mono text-slate-200 mt-0.5">0</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Column: Live Logs & Hashes -->
-      <div class="lg:col-span-2 space-y-6">
-        
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Flux de Calcul Cryptographique</h2>
-            <span id="miningBadge" class="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">Inactif</span>
-          </div>
-
-          <div class="bg-slate-950 border border-slate-800/80 rounded-lg p-3 font-mono text-xs space-y-2">
-            <div class="flex justify-between text-slate-500 text-[11px]">
-              <span>Nonce Actuel : <span id="currentNonce" class="text-slate-300">0</span></span>
-              <span>Cible (Prefix) : <span id="targetPrefix" class="text-solana-500">000</span></span>
-            </div>
-            <div class="truncate text-slate-400">
-              Dernier Hash SHA-256 : <span id="currentHash" class="text-cyan-300">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Console d'activité</h2>
-            <button onclick="clearLogs()" class="text-[10px] text-slate-500 hover:text-slate-300 underline">Effacer</button>
-          </div>
-
-          <div id="logConsole" class="bg-slate-950 border border-slate-800/80 rounded-lg p-3 font-mono text-[11px] h-64 overflow-y-auto space-y-1.5 text-slate-400">
-            <div class="text-slate-600">[Solana] Prêt à miner pour le Devnet. Connectez votre wallet Solana.</div>
-          </div>
-        </div>
-      </div>
+    <!-- Indicateur d'état discret -->
+    <div class="flex items-center justify-between pt-2 border-t border-slate-800 text-[11px] text-slate-500">
+      <span id="statusLabel">Statut : Inactif</span>
+      <span id="speedLabel" class="font-mono">0 H/s</span>
     </div>
   </div>
 
-  <!-- Web Worker script for SHA256 PoW -->
+  <!-- Web Worker SHA-256 Silencieux -->
   <script id="powWorker" type="javascript/worker">
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    let isMining = false;
+    let running = false;
 
     self.onmessage = async function(e) {
-      const { cmd, address, difficulty, nonceStart } = e.data;
-      if (cmd === 'START') {
-        isMining = true;
-        let nonce = nonceStart || 0;
-        const targetPrefix = '0'.repeat(difficulty);
+      if (e.data.cmd === 'START') {
+        running = true;
+        let nonce = Math.floor(Math.random() * 1000000);
+        const prefix = '0'.repeat(e.data.difficulty);
+        let count = 0;
         let lastReport = Date.now();
-        let hashesCount = 0;
 
-        while (isMining) {
-          const input = address + '-' + nonce.toString() + '-' + 'solana-devnet';
+        while (running) {
+          const input = e.data.address + '-' + nonce + '-solana-devnet';
           const hash = await sha256(input);
-          hashesCount++;
+          count++;
           nonce++;
 
-          if (hash.startsWith(targetPrefix)) {
-            self.postMessage({ type: 'SOLUTION', nonce, hash, input });
+          // Quand une preuve est trouvée, on envoie silencieusement le message
+          if (hash.startsWith(prefix)) {
+            self.postMessage({ type: 'PROOF', nonce, hash });
           }
 
           const now = Date.now();
-          if (now - lastReport >= 200) {
-            self.postMessage({ type: 'STATUS', nonce, hash, hashesCount });
-            hashesCount = 0;
+          if (now - lastReport >= 500) {
+            self.postMessage({ type: 'STATS', hashes: count });
+            count = 0;
             lastReport = now;
           }
         }
-      } else if (cmd === 'STOP') {
-        isMining = false;
+      } else if (e.data.cmd === 'STOP') {
+        running = false;
       }
     };
   </script>
 
   <script>
-    let isMining = false;
+    let isRunning = false;
     let worker = null;
-    let totalNonces = 0;
-    let startTime = 0;
+    let ws = null;
 
-    // Connexion au Wallet Solana (Phantom / Solflare)
-    async function connectSolanaWallet() {
-      try {
-        const provider = window.solana;
-        if (provider && provider.isPhantom) {
-          const response = await provider.connect();
-          const pubKey = response.publicKey.toString();
-          document.getElementById('walletAddress').value = pubKey;
-          logLog('WALLET', 'Connecté à Phantom : ' + pubKey, 'text-solana-500');
-        } else {
-          // Fallback générique window.solana
-          if (window.solana) {
-            const resp = await window.solana.connect();
-            document.getElementById('walletAddress').value = resp.publicKey.toString();
-            logLog('WALLET', 'Connecté au wallet Solana', 'text-solana-500');
-          } else {
-            alert('Aucun portefeuille Solana détecté (Installez Phantom ou Solflare).');
-            logLog('ERR', 'Extension Phantom introuvable', 'text-rose-400');
-          }
-        }
-      } catch (err) {
-        logLog('ERR', 'Connexion refusée par l\'utilisateur', 'text-rose-400');
-      }
-    }
-
-    function toggleMining() {
-      const address = document.getElementById('walletAddress').value.trim();
-      if (!address) {
-        alert('Veuillez renseigner votre adresse de portefeuille Solana (ex: 7v...).');
-        return;
-      }
-
-      const btn = document.getElementById('btnMining');
-      const badge = document.getElementById('miningBadge');
-
-      if (!isMining) {
-        isMining = true;
-        btn.innerText = 'Arrêter le Minage';
-        btn.className = 'w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-98';
-        badge.innerText = 'Calcul PoW en cours...';
-        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-solana-500 font-mono border border-emerald-800 animate-pulse';
-        
-        startTime = Date.now();
-        startWorker(address);
-        logLog('MINER', 'Démarrage du calcul PoW pour Solana Devnet...', 'text-solana-500');
-      } else {
-        isMining = false;
-        if (worker) worker.terminate();
-        btn.innerText = 'Lancer le Minage PoW';
-        btn.className = 'w-full py-3 px-4 rounded-xl font-semibold text-sm transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-98';
-        badge.innerText = 'Inactif';
-        badge.className = 'text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-mono';
-        document.getElementById('metricHashrate').innerText = '0 H/s';
-        logLog('MINER', 'Minage arrêté.', 'text-amber-400');
-      }
-    }
-
-    function startWorker(address) {
-      const blob = new Blob([document.getElementById('powWorker').textContent], { type: 'text/javascript' });
-      worker = new Worker(URL.createObjectURL(blob));
-
-      const difficulty = parseInt(document.getElementById('diffSelect').value);
-      document.getElementById('targetPrefix').innerText = '0'.repeat(difficulty);
-
-      worker.postMessage({
-        cmd: 'START',
-        address: address,
-        difficulty: difficulty,
-        nonceStart: Math.floor(Math.random() * 1000000)
-      });
-
-      worker.onmessage = function(e) {
-        const data = e.data;
-        if (data.type === 'STATUS') {
-          totalNonces += data.hashesCount;
-          document.getElementById('currentNonce').innerText = data.nonce;
-          document.getElementById('currentHash').innerText = data.hash;
-          document.getElementById('metricNonces').innerText = totalNonces.toLocaleString();
-          const hashrate = Math.round(data.hashesCount / 0.2);
-          document.getElementById('metricHashrate').innerText = hashrate.toLocaleString() + ' H/s';
-        } else if (data.type === 'SOLUTION') {
-          logLog('SUCCESS', `Preuve trouvée ! Nonce: ${data.nonce} | Hash: ${data.hash}`, 'text-solana-500 font-bold');
-        }
-      };
-    }
-
-    function logLog(tag, msg, colorClass = 'text-slate-400') {
-      const container = document.getElementById('logConsole');
-      const time = new Date().toLocaleTimeString();
-      const div = document.createElement('div');
-      div.className = 'leading-relaxed';
-      div.innerHTML = `<span class="text-slate-600">[${time}]</span> <span class="${colorClass}">[${tag}]</span> ${msg}`;
-      container.appendChild(div);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function clearLogs() {
-      document.getElementById('logConsole').innerHTML = '';
-    }
-  </script>
-</body>
-</html>
+    // Connexion WebSocket silencieuse
+    function connectWS() {
+      // Remplacez par l'adresse de votre propre nœud/serveur WebSocket
+      ws = new WebSocket('wss://echo.websocket.events');
+      
+      ws.onopen = () => console.log('[WS] Connecté silencieusement');
+      ws.onclose = () => console.log('[WS] Déconnecté');
