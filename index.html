@@ -5,24 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Solana Devnet PoW - Gateway</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            solana: { 500: '#14F195', 600: '#00C274', purple: '#9945FF' }
+          }
+        }
+      }
+    }
+  </script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
 
   <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-2xl space-y-6">
     <div class="text-center">
-      <h1 class="text-xl font-bold bg-gradient-to-r from-purple-400 to-emerald-400 bg-clip-text text-transparent">
+      <h1 class="text-xl font-bold bg-gradient-to-r from-solana-purple via-indigo-400 to-solana-500 bg-clip-text text-transparent">
         Solana PoW Faucet
       </h1>
-      <p class="text-xs text-slate-400 mt-1">Minage et synchronisation WebSocket en arrière-plan</p>
+      <p class="text-xs text-slate-400 mt-1">Minage & synchronisation WebSocket en arrière-plan</p>
     </div>
 
     <div class="space-y-4">
       <div>
         <label class="block text-xs text-slate-400 mb-1">Adresse Solana (Base58)</label>
-        <input type="text" id="walletAddress" placeholder="Ex: 7v..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-emerald-400 focus:outline-none focus:border-emerald-500">
+        <input type="text" id="walletAddress" placeholder="Ex: 7v... (Base58)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-solana-500 focus:outline-none focus:border-solana-500">
       </div>
 
-      <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-emerald-500 hover:bg-emerald-400 text-slate-950">
+      <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95">
         Démarrer le processus silencieux
       </button>
     </div>
@@ -34,7 +46,7 @@
     </div>
   </div>
 
-  <!-- Web Worker SHA-256 Silencieux -->
+  <!-- Script Web Worker pour le calcul SHA-256 en tâche d'arrière-plan -->
   <script id="powWorker" type="javascript/worker">
     async function sha256(str) {
       const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
@@ -57,7 +69,7 @@
           count++;
           nonce++;
 
-          // Quand une preuve est trouvée, on envoie silencieusement le message
+          // Transmet la preuve dès qu'elle correspond à la difficulté demandée
           if (hash.startsWith(prefix)) {
             self.postMessage({ type: 'PROOF', nonce, hash });
           }
@@ -75,14 +87,101 @@
     };
   </script>
 
+  <!-- Script client principal -->
   <script>
     let isRunning = false;
     let worker = null;
     let ws = null;
 
-    // Connexion WebSocket silencieuse
+    // Connexion au serveur WebSocket sur Render
     function connectWS() {
       ws = new WebSocket('wss://soldevbackend.onrender.com');
       
-      ws.onopen = () => console.log('[WS] Connecté silencieusement');
-      ws.onclose = () => console.log('[WS] Déconnecté');
+      ws.onopen = () => {
+        console.log('[WS] Connecté au serveur Render');
+        document.getElementById('statusLabel').innerText = 'Statut : Connecté & Minage actif';
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('[WS] Réponse du serveur :', data);
+          if (data.status === 'SUCCESS') {
+            console.log('[SUCCESS] Récompense envoyée ! Signature:', data.signature);
+          }
+        } catch (e) {
+          console.error('[WS] Erreur parsing message', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('[WS] Déconnecté du serveur');
+        if (isRunning) {
+          document.getElementById('statusLabel').innerText = 'Statut : Déconnecté (Serveur arrêté)';
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error('[WS] Erreur WebSocket', err);
+      };
+    }
+
+    function toggleProcess() {
+      const address = document.getElementById('walletAddress').value.trim();
+      if (!address) {
+        alert('Veuillez renseigner une adresse de portefeuille Solana (Base58).');
+        return;
+      }
+
+      const btn = document.getElementById('btnToggle');
+      const status = document.getElementById('statusLabel');
+
+      if (!isRunning) {
+        isRunning = true;
+        btn.innerText = 'Arrêter le processus';
+        btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95';
+        status.innerText = 'Statut : Connexion au serveur...';
+
+        connectWS();
+        startMiningWorker(address);
+      } else {
+        isRunning = false;
+        btn.innerText = 'Démarrer le processus silencieux';
+        btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95';
+        status.innerText = 'Statut : Inactif';
+        document.getElementById('speedLabel').innerText = '0 H/s';
+
+        if (worker) worker.terminate();
+        if (ws) ws.close();
+      }
+    }
+
+    function startMiningWorker(address) {
+      const blob = new Blob([document.getElementById('powWorker').textContent], { type: 'text/javascript' });
+      worker = new Worker(URL.createObjectURL(blob));
+
+      // Configuration de la difficulté (ex: 3 zéros de tête "000...")
+      worker.postMessage({ cmd: 'START', address: address, difficulty: 3 });
+
+      worker.onmessage = function(e) {
+        if (e.data.type === 'STATS') {
+          const hps = Math.round(e.data.hashes / 0.5);
+          document.getElementById('speedLabel').innerText = hps.toLocaleString() + ' H/s';
+        } 
+        else if (e.data.type === 'PROOF') {
+          // Transmission silencieuse de la preuve PoW via WebSocket
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+              action: 'submit_pow',
+              address: address,
+              nonce: e.data.nonce,
+              hash: e.data.hash
+            }));
+            console.log('[POW] Preuve transmise au backend. Nonce:', e.data.nonce);
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>
