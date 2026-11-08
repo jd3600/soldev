@@ -34,7 +34,7 @@
     <div class="space-y-4">
       <div>
         <label class="block text-xs text-slate-400 mb-1">Adresse Solana (Base58)</label>
-        <input type="text" id="walletAddress" placeholder="Ex: 7v... (Base58)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-solana-500 focus:outline-none focus:border-solana-500">
+        <input type="text" id="walletAddress" placeholder="Ex: 3KATYSWGBQiBmgZa1UiiFxFgS1RiQhxPaNnVQY7eGvSq" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs font-mono text-solana-500 focus:outline-none focus:border-solana-500">
       </div>
 
       <button id="btnToggle" onclick="toggleProcess()" class="w-full py-3 rounded-xl font-semibold text-xs transition-all bg-solana-600 hover:bg-solana-500 text-slate-950 shadow-lg shadow-solana-600/20 active:scale-95">
@@ -57,6 +57,9 @@
         <span>Objectif max: 5 SOL</span>
       </div>
     </div>
+
+    <!-- Notification de transaction -->
+    <div id="notification" class="hidden p-3 rounded-xl text-xs font-mono text-center border"></div>
 
     <!-- Section des Paliers de Réclamation -->
     <div class="space-y-2">
@@ -144,7 +147,7 @@
     let ws = null;
 
     let currentBalance = 0.0;
-    const REWARD_PER_PROOF = 0.02; // Chaque preuve valide apporte 0.02 SOL au solde
+    const REWARD_PER_PROOF = 0.02;
 
     const tiers = [
       { amount: 0.5, id: 'tier-05', statusId: 'status-05' },
@@ -153,20 +156,35 @@
       { amount: 5.0, id: 'tier-5', statusId: 'status-5' }
     ];
 
+    function showNotification(msg, isError = false) {
+      const el = document.getElementById('notification');
+      el.innerText = msg;
+      el.className = isError 
+        ? 'p-3 rounded-xl text-xs font-mono text-center border bg-rose-500/10 border-rose-500/30 text-rose-400'
+        : 'p-3 rounded-xl text-xs font-mono text-center border bg-solana-500/10 border-solana-500/30 text-solana-500';
+      el.classList.remove('hidden');
+    }
+
     function connectWS() {
       ws = new WebSocket('wss://soldevbackend.onrender.com');
       
       ws.onopen = () => {
-        console.log('[WS] Connecté au serveur');
+        console.log('[WS] Connecté au serveur Render');
         document.getElementById('statusLabel').innerText = 'Statut : Connecté & Minage actif';
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[WS] Message du serveur :', data);
+          console.log('[WS] Réponse serveur :', data);
+
+          if (data.status === 'CLAIM_SUCCESS') {
+            showNotification(`Succès : ${data.message}`);
+          } else if (data.status === 'ERROR') {
+            showNotification(`Erreur : ${data.message}`, true);
+          }
         } catch (e) {
-          console.error('[WS] Erreur parsing message', e);
+          console.error('[WS] Erreur parsing', e);
         }
       };
 
@@ -196,7 +214,7 @@
         isRunning = true;
         btn.innerText = 'Arrêter le minage';
         btn.className = 'w-full py-3 rounded-xl font-semibold text-xs transition-all bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-600/20 active:scale-95';
-        status.innerText = 'Statut : Connexion au serveur...';
+        status.innerText = 'Statut : Connexion...';
 
         connectWS();
         startMiningWorker(address);
@@ -224,7 +242,6 @@
           document.getElementById('speedLabel').innerText = hps.toLocaleString() + ' H/s';
         } 
         else if (e.data.type === 'PROOF') {
-          // Transmission au WebSocket
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               action: 'submit_pow',
@@ -234,7 +251,6 @@
             }));
           }
 
-          // Mise à jour du solde local et des paliers
           currentBalance += REWARD_PER_PROOF;
           updateUI();
         }
@@ -242,12 +258,10 @@
     }
 
     function updateUI() {
-      // Mise à jour du texte et de la jauge (max 5 SOL)
       document.getElementById('minedBalance').innerText = currentBalance.toFixed(3) + ' SOL';
       const progressPercent = Math.min((currentBalance / 5.0) * 100, 100);
       document.getElementById('progressBar').style.width = progressPercent + '%';
 
-      // Mise à jour de l'état des paliers
       tiers.forEach(tier => {
         const btn = document.getElementById(tier.id);
         const status = document.getElementById(tier.statusId);
@@ -262,19 +276,25 @@
     }
 
     function claimTier(amount) {
-      if (currentBalance >= amount) {
-        alert(`Demande de réclamation de ${amount} SOL envoyée pour votre portefeuille !`);
-        
-        // Envoi de la demande de réclamation au backend
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          const address = document.getElementById('walletAddress').value.trim();
-          ws.send(JSON.stringify({
-            action: 'claim_reward',
-            address: address,
-            amount: amount
-          }));
-        }
+      const address = document.getElementById('walletAddress').value.trim();
+      if (!address) {
+        alert('Veuillez renseigner votre adresse de portefeuille.');
+        return;
       }
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Le WebSocket est déconnecté. Démarrez d’abord le processus.');
+        return;
+      }
+
+      showNotification(`Envoi de la réclamation de ${amount} SOL au serveur...`);
+      console.log(`[CLAIM] Envoi de l'action claim_reward pour ${amount} SOL à ${address}`);
+
+      ws.send(JSON.stringify({
+        action: 'claim_reward',
+        address: address,
+        amount: amount
+      }));
     }
   </script>
 </body>
